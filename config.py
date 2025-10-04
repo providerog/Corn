@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
-TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "8171217557:AAHblES_Ve2lCOZGtq4Jxw2kL_6Fv_JnuZQ")
+TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
 
 #Your API ID from my.telegram.org
 API_ID = int(os.environ.get("API_ID", "21816206"))
@@ -125,3 +125,4 @@ logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 def LOGGER(name: str) -> logging.Logger:
     return logging.getLogger(name)
+
