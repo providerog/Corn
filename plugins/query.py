@@ -3,11 +3,11 @@ import logging
 import asyncio
 from bot import Bot
 from pyrogram import __version__
-from Plugins.FORMATS import *
+from plugins.FORMATS import *
 from config import *
 from pyrogram.enums import ChatAction
-from Plugins.autoDelete import convert_time
-from Database.database import db
+from plugins.autoDelete import convert_time
+from database.database import db
 from datetime import timedelta
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto, ReplyKeyboardMarkup, ReplyKeyboardRemove
 
@@ -1042,11 +1042,11 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         except Exception as e:
             try:
                 # Handle any exceptions that occur during the process
-                await set_msg.reply(f"<b>! Eʀʀᴏʀ Oᴄᴄᴜʀʀᴇᴅ..\n<blockquote>Rᴇᴀsᴏɴ:</b> {e}</blockquote>")
+                await set_msg.reply(f"<b>! Eʀʀᴏʀ Oᴄᴄᴜʀᴇᴅ..\n<blockquote>Rᴇᴀsᴏɴ:</b> {e}</blockquote>")
                 print(f"! Error Occurred on callback data = 'set_footer' : {e}")
             except BaseException:
                 # If an error occurs while sending the error message, send a timeout message
-                await client.send_message(id, text=f"<b>! Eʀʀᴏʀ Oᴄᴄᴜʀʀᴇᴅ..\n<blockquote><i>Rᴇᴀsᴏɴ: 1 minute Time out ..</i></b></blockquote>", disable_notification=True)
+                await client.send_message(id, text=f"<b>! Eʀʀᴏʀ Oᴄᴄᴜʀᴇᴅ..\n<blockquote><i>Rᴇᴀsᴏɴ: 1 minute Time out ..</i></b></blockquote>", disable_notification=True)
                 print(f"! Error Occurred on callback data = 'set_footer' -> Reason: 1 minute Time out ..")
 
 
@@ -1083,11 +1083,11 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         except Exception as e:
             try:
                 # Handle any exceptions that occur during the process
-                await set_msg.reply(f"<b>! Eʀʀᴏʀ Oᴄᴄᴜʀʀᴇᴅ..\n<blockquote>Rᴇᴀsᴏɴ:</b> {e}</blockquote>")
+                await set_msg.reply(f"<b>! Eʀʀᴏʀ Oᴄᴄᴜʀᴇᴅ..\n<blockquote>Rᴇᴀsᴏɴ:</b> {e}</blockquote>")
                 print(f"! Error Occurred on callback data = 'set_header' : {e}")
             except BaseException:
                 # If an error occurs while sending the error message, send a timeout message
-                await client.send_message(id, text=f"<b>! Eʀʀᴏʀ Oᴄᴄᴜʀʀᴇᴅ..\n<blockquote><i>Rᴇᴀsᴏɴ: 1 minute Time out ..</i></b></blockquote>", disable_notification=True)
+                await client.send_message(id, text=f"<b>! Eʀʀᴏʀ Oᴄᴄᴜʀᴇᴅ..\n<blockquote><i>Rᴇᴀsᴏɴ: 1 minute Time out ..</i></b></blockquote>", disable_notification=True)
                 print(f"! Error Occurred on callback data = 'set_header' -> Reason: 1 minute Time out ..")
 
 
