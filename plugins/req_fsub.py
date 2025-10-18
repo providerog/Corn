@@ -1,5 +1,5 @@
 from bot import Bot
-from Database.database import db
+from database.database import db
 from pyrogram.enums import ChatMemberStatus
 from pyrogram.types import ChatMemberUpdated
 

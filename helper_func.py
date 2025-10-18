@@ -33,11 +33,17 @@ async def check_banUser(filter, client, update):
 
 #used for cheking if a user is admin ~Owner also treated as admin level
 async def check_admin(filter, client, update):
-    try:
-        user_id = update.from_user.id       
-        return any([user_id == OWNER_ID, await db.admin_exist(user_id)])
-    except Exception as e:
-        print(f"! Exception in check_admin: {e}")
+    if isinstance(update, CallbackQuery):
+        user_id = update.from_user.id
+    elif isinstance(update, Message):
+        user_id = update.from_user.id
+    else:
+        return False
+
+    admins = await db.get_all_admins()
+    if user_id in admins or user_id == OWNER_ID:
+        return True
+    else:
         return False
 
 # Check user subscription in Channels in a more optimized way

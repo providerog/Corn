@@ -9,7 +9,7 @@ from plugins.autoDelete import convert_time
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from config import OWNER_ID, START_PIC
 from pyrogram import Client, filters
-from Database.database import db 
+from database.database import db
 from plugins.query import *
 
 @Bot.on_message(filters.command('add_fsub') & filters.private & filters.user(OWNER_ID))

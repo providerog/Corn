@@ -15,11 +15,11 @@ from plugins.autoDelete import auto_del_notification, delete_message
 from bot import Bot
 from config import *
 from helper_func import *
-from Database.database import *
-from Database.database import db
-from Database.db_premium import *
+from database.database import *
+from database.database import db
+from database.db_premium import *
 from config import *
-from Plugins.FORMATS import *
+from plugins.FORMATS import *
 from pyrogram.errors.exceptions.bad_request_400 import PeerIdInvalid
 from datetime import datetime, timedelta
 from pytz import timezone
