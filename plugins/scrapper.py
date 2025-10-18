@@ -2,7 +2,7 @@ import asyncio
 from pyrogram import filters
 from pyrogram.types import Message
 from bot import Bot
-from Database.database import db
+from database.database import db
 from config import API_ID, API_HASH, OWNER_ID
 from pyrogram import Client
 from helper_func import is_admin

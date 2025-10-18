@@ -3,11 +3,11 @@ import logging
 import asyncio
 from bot import Bot
 from pyrogram import __version__
-from Plugins.FORMATS import *
+from plugins.FORMATS import *
 from config import *
 from pyrogram.enums import ChatAction
-from Plugins.autoDelete import convert_time
-from Database.database import db
+from plugins.autoDelete import convert_time
+from database.database import db
 from datetime import timedelta
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto, ReplyKeyboardMarkup, ReplyKeyboardRemove
 

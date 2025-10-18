@@ -12,7 +12,8 @@ import pytz  # For Indian Standard Time (IST)
 
 from config import *
 from dotenv import load_dotenv
-from Database.db_premium import remove_expired_users
+from database.db_premium import remove_expired_users
+from database.database import db
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
