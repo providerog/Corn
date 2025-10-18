@@ -46,7 +46,8 @@ class Bot(Client):
             api_hash=API_HASH,
             api_id=API_ID,
             workers=TG_BOT_WORKERS,
-            bot_token=TG_BOT_TOKEN
+            bot_token=TG_BOT_TOKEN,
+            plugins=dict(root="plugins")
         )
         self.LOGGER = LOGGER
 
