@@ -12,7 +12,7 @@ from pyrogram import Client, filters
 from database.database import db
 from plugins.query import *
 
-@Bot.on_message(filters.command('add_fsub') & filters.private & filters.user(OWNER_ID))
+@Bot.on_message(filters.command('add_fsub') & filters.private & is_admin)
 async def add_forcesub(client: Client, message: Message):
     pro = await message.reply("<b><i>Processing....</i></b>", quote=True)
     check = 0
@@ -66,7 +66,7 @@ async def add_forcesub(client: Client, message: Message):
         await pro.edit(f'<b>❌ Error occurred while adding force-sub channels</b>\n\n{channel_list.strip()}\n\n<b><i>Please try again...</i></b>', reply_markup=reply_markup, disable_web_page_preview=True)
 
 
-@Bot.on_message(filters.command('del_fsub') & filters.private & filters.user(OWNER_ID))
+@Bot.on_message(filters.command('del_fsub') & filters.private & is_admin)
 async def delete_all_forcesub(client: Client, message: Message):
     pro = await message.reply("<b><i>Processing....</i></b>", quote=True)
     channels = await db.get_all_channels()
@@ -136,7 +136,7 @@ async def get_forcesub(client: Client, message: Message):
 
 
 # Commands for adding admins by owner
-@Bot.on_message(filters.command('add_admins') & filters.private & filters.user(OWNER_ID))
+@Bot.on_message(filters.command('add_admins') & filters.private & is_admin)
 async def add_admins(client: Client, message: Message):
     pro = await message.reply("<b><i>Processing....</i></b>", quote=True)
     check = 0
@@ -177,7 +177,7 @@ async def add_admins(client: Client, message: Message):
         await pro.edit(f'<b>❌ Error occurred while adding admins</b>\n\n{admin_list.strip()}\n\n<b><i>Please try again...</i></b>', reply_markup=reply_markup)
 
 
-@Bot.on_message(filters.command('del_admins') & filters.private & filters.user(OWNER_ID))
+@Bot.on_message(filters.command('del_admins') & filters.private & is_admin)
 async def delete_admins(client: Client, message: Message):
     pro = await message.reply("<b><i>Processing....</i></b>", quote=True)
     admin_ids = await db.get_all_admins()
@@ -353,7 +353,7 @@ async def get_banuser_list(client:Client, message: Message):
 #=====================================================================================##
 
 # Auto Delete Setting Commands
-@Bot.on_message(filters.command('auto_del') & filters.private & ~banUser)
+@Bot.on_message(filters.command('auto_del') & filters.private & is_admin)
 async def autoDelete_settings(client, message):
     await message.reply_chat_action(ChatAction.TYPING)
 
@@ -381,7 +381,7 @@ async def autoDelete_settings(client, message):
 
 
 #Files related settings command
-@Bot.on_message(filters.command('files') & filters.private & ~banUser)
+@Bot.on_message(filters.command('files') & filters.private & is_admin)
 async def files_commands(client: Client, message: Message):
     await message.reply_chat_action(ChatAction.TYPING)
 
@@ -421,7 +421,7 @@ async def files_commands(client: Client, message: Message):
 
 
 #Request force sub mode commad,,,,,,
-@Bot.on_message(filters.command('req_fsub') & filters.private & ~banUser)
+@Bot.on_message(filters.command('req_fsub') & filters.private & is_admin)
 async def handle_reqFsub(client: Client, message: Message):
     await message.reply_chat_action(ChatAction.TYPING)
     try:
@@ -444,7 +444,7 @@ async def handle_reqFsub(client: Client, message: Message):
         await message.reply(f"<b>! Eʀʀᴏʀ Oᴄᴄᴜʀᴇᴅ..\n<blockquote>Rᴇᴀsᴏɴ:</b> {e}</blockquote><b><i>Cᴏɴᴛᴀɴᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ: @rohit_1888</i></b>", reply_markup=reply_markup)
 
 
-@Bot.on_message(filters.command('token') & filters.private & filters.user(OWNER_ID))
+@Bot.on_message(filters.command('token') & filters.private & is_admin)
 async def set_shortener(client, message):
     await message.reply_chat_action(ChatAction.TYPING)
 
