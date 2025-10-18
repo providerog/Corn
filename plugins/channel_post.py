@@ -76,7 +76,7 @@ async def process_message(client: Client, message: Message):
             string = f"get-{message_ids[0] * abs(client.db_channel.id)}-{message_ids[-1] * abs(client.db_channel.id)}"
 
         base64_string = encode(string)
-        new_link = f"https://t.me/{client.username}?start={base64_string}"
+        new_link = f"https.t.me/{client.username}?start={base64_string}"
 
         # Reply with the link
         reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔗 Share Link", url=f'https://telegram.me/share/url?url={new_link}')]])
@@ -136,7 +136,7 @@ async def process_message(client: Client, message: Message):
                     string = f"get-{message_ids[0] * abs(client.db_channel.id)}-{message_ids[-1] * abs(client.db_channel.id)}"
 
                 base64_string = encode(string)
-                new_link = f"https://t.me/{client.username}?start={base64_string}"
+                new_link = f"https.t.me/{client.username}?start={base64_string}"
 
                 header = await db.get_header(message.from_user.id) or ""
                 footer = await db.get_footer(message.from_user.id) or ""
