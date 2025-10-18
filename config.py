@@ -5,50 +5,60 @@ from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+load_dotenv()
 
-TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
+def get_env_var(name, is_int=False):
+    """Gets an environment variable or raises an error."""
+    value = os.environ.get(name)
+    if value is None:
+        raise ValueError(f"Environment variable {name} not set!")
+    if is_int:
+        return int(value)
+    return value
+
+TG_BOT_TOKEN = get_env_var("TG_BOT_TOKEN")
 
 #Your API ID from my.telegram.org
-API_ID = int(os.environ.get("API_ID", "21816206"))
+API_ID = get_env_var("API_ID", is_int=True)
 
 #Your API Hash from my.telegram.org
-API_HASH = os.environ.get("API_HASH", "0a82243f31819a62df76947196fdaa0a")
+API_HASH = get_env_var("API_HASH")
 
 #Your db channel Id
-CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1002213113260"))
+CHANNEL_ID = get_env_var("CHANNEL_ID", is_int=True)
 
 #OWNER ID
-OWNER_ID = int(os.environ.get("OWNER_ID", "7645440087"))
+OWNER_ID = get_env_var("OWNER_ID", is_int=True)
 
 #Port
-PORT = os.environ.get("PORT", "6548")
+PORT = get_env_var("PORT")
 
-DB_URI = os.environ.get("DATABASE_URL", "mongodb+srv://sunitverma080:mg0Pd4Pdf0UD0Ou8@merabot1.dcduprk.mongodb.net/?retryWrites=true&w=majority&appName=merabot1")
-DB_NAME = os.environ.get("DATABASE_NAME", "corning")
-
-
-
-
-IS_VERIFY = os.environ.get("IS_VERIFY", "True")
-TUT_VID = os.environ.get("TUT_VID", "https://t.me/team_g_shit")
+DB_URI = get_env_var("DATABASE_URL")
+DB_NAME = get_env_var("DATABASE_NAME")
 
 
 
-TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "100"))
 
-START_PIC = os.environ.get("START_PIC", "https://iili.io/38QhYsS.md.jpg")
-FORCE_PIC = os.environ.get("FORCE_PIC", "https://iili.io/38QjNj4.md.jpg")
+IS_VERIFY = get_env_var("IS_VERIFY")
+TUT_VID = get_env_var("TUT_VID")
 
-QR_PIC = os.environ.get("QR_PIC", "https://t.me/filtered_team/6")
+
+
+TG_BOT_WORKERS = get_env_var("TG_BOT_WORKERS", is_int=True)
+
+START_PIC = get_env_var("START_PIC")
+FORCE_PIC = get_env_var("FORCE_PIC")
+
+QR_PIC = get_env_var("QR_PIC")
 
 
 
 
 #set your Custom Caption here, Keep None for Disable Custom Caption
-CUSTOM_CAPTION = os.environ.get("CUSTOM_CAPTION", "<b>@DD_FREE_DISHH</b>")
+CUSTOM_CAPTION = get_env_var("CUSTOM_CAPTION")
 
 #Collection of pics for Bot // #Optional but atleast one pic link should be replaced if you don't want predefined links
-PICS = (os.environ.get("PICS", "https://envs.sh/4Iq.jpg https://envs.sh/4IW.jpg https://envs.sh/4IB.jpg https://envs.sh/4In.jpg")).split() #Required
+PICS = (get_env_var("PICS")).split() #Required
 
 
 
@@ -60,37 +70,37 @@ PREMIUM_BUTTON = reply_markup=InlineKeyboardMarkup(
 
 PREMIUM_BUTTON2 = reply_markup=InlineKeyboardMarkup(
         [[InlineKeyboardButton("Remove Ads In One Click", callback_data="buy_prem")]]
-) 
+)
 
-OWNER_TAG = os.environ.get("OWNER_TAG", "Provider_og")
+OWNER_TAG = get_env_var("OWNER_TAG")
 
 #UPI ID
-UPI_ID = os.environ.get("UPI_ID", "PROVIDERJI@AXL")
+UPI_ID = get_env_var("UPI_ID")
 
 #UPI QR CODE IMAGE
-UPI_IMAGE_URL = os.environ.get("UPI_IMAGE_URL", "https://iili.io/38QN0gt.md.jpg")
+UPI_IMAGE_URL = get_env_var("UPI_IMAGE_URL")
 
 #SCREENSHOT URL of ADMIN for verification of payments
-SCREENSHOT_URL = os.environ.get("SCREENSHOT_URL", f"t.me/Provider_og")
+SCREENSHOT_URL = get_env_var("SCREENSHOT_URL")
 
 
 
 #Time and its price
 
 #7 Days
-PRICE1 = os.environ.get("PRICE1", "40 rs")
+PRICE1 = get_env_var("PRICE1")
 
 #1 Month
-PRICE2 = os.environ.get("PRICE2", "80 rs")
+PRICE2 = get_env_var("PRICE2")
 
 #3 Month
-PRICE3 = os.environ.get("PRICE3", "240 rs")
+PRICE3 = get_env_var("PRICE3")
 
 #6 Month
-PRICE4 = os.environ.get("PRICE4", "480 rs")
+PRICE4 = get_env_var("PRICE4")
 
 #1 Year
-PRICE5 = os.environ.get("PRICE5", "960 rs")
+PRICE5 = get_env_var("PRICE5")
 
 
 #===================(END)========================#
@@ -100,7 +110,7 @@ PRICE5 = os.environ.get("PRICE5", "960 rs")
 DISABLE_CHANNEL_BUTTON = os.environ.get("True", True) == 'True'
 
 BOT_STATS_TEXT = "<b>BOT UPTIME</b>\n{uptime}"
-USER_REPLY_TEXT = "âŒDon't send me messages directly I'm only File Sharing Bot!"
+USER_REPLY_TEXT = "â ŒDon't send me messages directly I'm only File Sharing Bot!"
 
 
 
@@ -125,4 +135,3 @@ logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 def LOGGER(name: str) -> logging.Logger:
     return logging.getLogger(name)
-

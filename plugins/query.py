@@ -1167,3 +1167,30 @@ async def cb_handler(client: Bot, query: CallbackQuery):
     elif data == "generate_link":
         await callback_query.answer()  # Acknowledge the callback
         await channel_post(client, callback_query.message)
+
+from helper_func import is_admin
+
+@Bot.on_message(filters.command('query') & filters.private & is_admin)
+async def query_command(client: Bot, message: Message):
+    """
+    Searches for scraped files.
+    """
+
+    if len(message.command) < 2:
+        await message.reply_text("Usage: /query <search term>")
+        return
+
+    query = " ".join(message.command[1:])
+    files = await db.search_scraped_files(query)
+
+    if not files:
+        await message.reply_text("No files found.")
+        return
+
+    response = "Found the following files:\n\n"
+    for file in files:
+        response += f"**File Name:** {file['file_name']}\n"
+        response += f"**Caption:** {file['caption']}\n"
+        response += f"**File ID:** `{file['file_id']}`\n\n"
+
+    await message.reply_text(response)
