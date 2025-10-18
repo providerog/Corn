@@ -76,6 +76,10 @@ class Bot(Client):
         await app.setup()
         await web.TCPSite(app, "0.0.0.0", PORT).start()
 
+        # Start the queue worker
+        from plugins.channel_post import start_queue_worker
+        start_queue_worker(self)
+
 
         try: await self.send_message(OWNER_ID, text = f"<b><blockquote>🤖 Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ by @rohit_1888</blockquote></b>")
         except: pass

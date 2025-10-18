@@ -6,7 +6,10 @@ import base64
 import os
 from datetime import datetime
 from pyrogram import filters, Client, enums
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    Message, InlineKeyboardMarkup, InlineKeyboardButton,
+    InputMediaPhoto, InputMediaVideo, InputMediaAudio, InputMediaDocument
+)
 from pyrogram.enums import ParseMode, ChatAction
 from bot import Bot
 from config import *
@@ -15,6 +18,9 @@ from helper_func import *
 
 DB_CHANNEL = CHANNEL_ID
 FILE_SIZE_LIMIT = 1 * 1024 * 1024 * 1024  # 1GB limit
+
+# Create a queue to hold incoming messages for processing
+processing_queue = asyncio.Queue()
 
 
 def encode(data: str) -> str:
@@ -41,10 +47,18 @@ async def decode(base64_string: str) -> list:
     'help', 'cmd', 'info', 'add_fsub', 'fsub_chnl', 'restart', 'del_fsub', 'add_admins', 'del_admins', 
     'admin_list', 'cancel', 'auto_del', 'forcesub', 'files', 'add_banuser', 'token', 'del_banuser', 'banuser_list', 
     'status', 'req_fsub', 'myplan', 'login', 'header', 'footer', 'save', 'caption', 'logout', 'short']))
+@Bot.on_message(filters.private & is_admin & ~filters.command([
+    'start', 'users', 'broadcast', 'batch', 'genlink', 'stats', 'addpaid', 'removepaid', 'listpaid',
+    'help', 'cmd', 'info', 'add_fsub', 'fsub_chnl', 'restart', 'del_fsub', 'add_admins', 'del_admins',
+    'admin_list', 'cancel', 'auto_del', 'forcesub', 'files', 'add_banuser', 'token', 'del_banuser', 'banuser_list',
+    'status', 'req_fsub', 'myplan', 'login', 'header', 'footer', 'save', 'caption', 'logout', 'short']))
+async def message_handler(client: Client, message: Message):
+    """Adds incoming messages to the processing queue."""
+    await processing_queue.put(message)
+    await message.reply_text("Your file has been added to the queue and will be processed shortly.")
 
 
-
-async def fetch_and_upload_content(client: Client, message: Message):
+async def process_message(client: Client, message: Message):
     """Fetches restricted content, processes it, and uploads it with header and footer."""
     # Extract the link from text or caption
     link = None
@@ -89,11 +103,22 @@ async def fetch_and_upload_content(client: Client, message: Message):
         # Process and upload messages
         uploaded_links = []
         message_ids = []
+        processed_media_groups = set()
+
         for msg_type, response in messages:
-            db_msg = await process_and_upload(client, acc, msg_type, response)
-            if db_msg:
-                uploaded_links.append(f"https://t.me/c/{str(abs(DB_CHANNEL))}/{db_msg.id}")
-                message_ids.append(db_msg.id)
+            if response.media_group_id and response.media_group_id not in processed_media_groups:
+                media_group = await acc.get_media_group(response.chat.id, response.id)
+                db_msgs = await process_and_upload_media_group(client, acc, media_group)
+                if db_msgs:
+                    for db_msg in db_msgs:
+                        uploaded_links.append(f"https://t.me/c/{str(abs(DB_CHANNEL))}/{db_msg.id}")
+                        message_ids.append(db_msg.id)
+                processed_media_groups.add(response.media_group_id)
+            elif not response.media_group_id:
+                db_msg = await process_and_upload(client, acc, msg_type, response)
+                if db_msg:
+                    uploaded_links.append(f"https://t.me/c/{str(abs(DB_CHANNEL))}/{db_msg.id}")
+                    message_ids.append(db_msg.id)
 
         # Generate encoded link
         if uploaded_links:
@@ -150,6 +175,45 @@ async def fetch_and_upload_content(client: Client, message: Message):
         # Ensure to stop the client session if it was started
         if 'acc' in locals():
             await acc.stop()
+
+async def process_and_upload_media_group(client, acc, messages):
+    """Processes and uploads a media group to the database channel."""
+    media_group = []
+    temp_files = []
+    final_caption = ""
+
+    # Consolidate caption from the media group
+    for msg in messages:
+        if msg.caption:
+            final_caption += msg.caption.html + "\n"
+
+    try:
+        for i, msg in enumerate(messages):
+            file_path = await acc.download_media(msg)
+            temp_files.append(file_path)
+
+            # Apply caption only to the first item
+            caption = final_caption if i == 0 else ""
+
+            if msg.photo:
+                media_group.append(InputMediaPhoto(media=file_path, caption=caption))
+            elif msg.video:
+                media_group.append(InputMediaVideo(media=file_path, caption=caption))
+            elif msg.audio:
+                media_group.append(InputMediaAudio(media=file_path, caption=caption))
+            elif msg.document:
+                media_group.append(InputMediaDocument(media=file_path, caption=caption))
+
+        if not media_group:
+            return None
+
+        db_msgs = await client.send_media_group(DB_CHANNEL, media_group)
+        return db_msgs
+    finally:
+        for file_path in temp_files:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
 
 async def process_and_upload(client, acc, msg_type, response):
     """Processes and uploads a single message to the database channel."""
@@ -210,6 +274,23 @@ async def upload_to_db(client, msg_type, file_path, caption):
         return await client.send_document(DB_CHANNEL, file_path, caption=caption, parse_mode=enums.ParseMode.HTML)
     elif msg_type == "Animation":
         return await client.send_animation(DB_CHANNEL, file_path, caption=caption, parse_mode=enums.ParseMode.HTML)
+
+
+async def queue_worker(client: Client):
+    """Monitors the queue and processes messages."""
+    while True:
+        message = await processing_queue.get()
+        try:
+            await process_message(client, message)
+        except Exception as e:
+            print(f"Error processing message from queue: {e}")
+            await message.reply_text(f"Sorry, an error occurred while processing your file: {e}")
+        finally:
+            processing_queue.task_done()
+
+def start_queue_worker(client: Client):
+    """Creates and starts the background queue worker task."""
+    asyncio.create_task(queue_worker(client))
 
 
 def get_message_type(msg):
