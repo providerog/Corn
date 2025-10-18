@@ -51,40 +51,6 @@ class Bot(Client):
         )
         self.LOGGER = LOGGER
 
-    async def start(self):
-        await super().start()
-        usr_bot_me = await self.get_me()
-        self.uptime = get_indian_time()  # Use IST for uptime tracking
-
-
-        try:
-            db_channel = await self.get_chat(CHANNEL_ID)
-            self.db_channel = db_channel
-        except Exception as e:
-            self.LOGGER(__name__).warning(e)
-            self.LOGGER(__name__).warning(
-                f"Make Sure bot is Admin in DB Channel, and Double check the CHANNEL_ID Value, Current Value {CHANNEL_ID}"
-            )
-            self.LOGGER(__name__).info("\nBot Stopped. @rohit_1888 for support")
-            sys.exit()
-
-        self.set_parse_mode(ParseMode.HTML)
-        self.username = usr_bot_me.username
-        self.LOGGER(__name__).info(f"Bot Running..! Made by @provider_og")   
-
-        # Start Web Server
-        app = web.AppRunner(await web_server())
-        await app.setup()
-        await web.TCPSite(app, "0.0.0.0", PORT).start()
-
-
-        try: await self.send_message(OWNER_ID, text = f"<b><blockquote>🤖 Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ by @rohit_1888</blockquote></b>")
-        except: pass
-
-    async def stop(self, *args):
-        await super().stop()
-        self.LOGGER(__name__).info("Bot stopped.")
-
     async def scrape_worker(self):
         """Processes scrape tasks from the queue."""
         while True:
