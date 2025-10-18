@@ -51,7 +51,7 @@ class Rohit:
         self.autho_user_data = self.database['autho_user']
         self.shortener_data = self.database['shortener']
         self.settings_data = self.database['settings']
-        
+
         self.auto_delete_data = self.database['auto_delete']
         self.hide_caption_data = self.database['hide_caption']
         self.protect_content_data = self.database['protect_content']
@@ -67,6 +67,7 @@ class Rohit:
         self.rqst_fsub_data = self.database['request_forcesub']
         self.rqst_fsub_Channel_data = self.database['request_forcesub_channel']
         self.store_reqLink_data = self.database['store_reqLink']
+        self.scraped_files_data = self.database['scraped_files']
 
 
     # Database Methods to Set, Get, and Deactivate Header/Footer
@@ -160,7 +161,7 @@ class Rohit:
         except Exception as e:
             logging.error(f"Error deactivating footer for user {user_id}: {e}")
             return False
-            
+
     #login data
     async def set_session(self, user_id: int, session: str):
         """Store or update the user's session string in the database."""
@@ -387,7 +388,7 @@ class Rohit:
 
 
     # DELETE TIMER SETTINGS
-    async def set_del_timer(self, value: int):        
+    async def set_del_timer(self, value: int):
         existing = await self.del_timer_data.find_one({})
         if existing:
             await self.del_timer_data.update_one({}, {'$set': {'value': value}})
@@ -438,7 +439,7 @@ class Rohit:
             await self.rqst_fsub_data.insert_one({'value': value})
 
 
-    # GET BOOLEAN VALUES FOR DIFFERENT SETTINGS        
+    # GET BOOLEAN VALUES FOR DIFFERENT SETTINGS
 
     async def get_auto_delete(self):
         data = await self.auto_delete_data.find_one({})
@@ -537,7 +538,7 @@ class Rohit:
     # Initialize a channel with an empty user_ids array (acting as a set)
     async def add_reqChannel(self, channel_id: int):
         await self.rqst_fsub_Channel_data.update_one(
-            {'_id': channel_id}, 
+            {'_id': channel_id},
             {'$setOnInsert': {'user_ids': []}},  # Start with an empty array to represent the set
             upsert=True  # Insert the document if it doesn't exist
         )
@@ -554,8 +555,8 @@ class Rohit:
     async def reqSent_user(self, channel_id: int, user_id: int):
         # Add the user to the set of users for a specific channel
         await self.rqst_fsub_Channel_data.update_one(
-            {'_id': channel_id}, 
-            {'$addToSet': {'user_ids': user_id}}, 
+            {'_id': channel_id},
+            {'$addToSet': {'user_ids': user_id}},
             upsert=True
         )
 
@@ -563,7 +564,7 @@ class Rohit:
     async def del_reqSent_user(self, channel_id: int, user_id: int):
         # Remove the user from the set of users for the channel
         await self.rqst_fsub_Channel_data.update_one(
-            {'_id': channel_id}, 
+            {'_id': channel_id},
             {'$pull': {'user_ids': user_id}}
         )
 
@@ -571,7 +572,7 @@ class Rohit:
     async def clear_reqSent_user(self, channel_id: int):
         if await self.reqChannel_exist(channel_id):
             await self.rqst_fsub_Channel_data.update_one(
-                {'_id': channel_id}, 
+                {'_id': channel_id},
                 {'$set': {'user_ids': []}}  # Reset user_ids to an empty array
             )
 
@@ -630,8 +631,8 @@ class Rohit:
     async def store_reqLink(self, channel_id: int, link: str):
         # Insert or update the link for the channel_id in store_reqLink_data
         await self.store_reqLink_data.update_one(
-            {'_id': channel_id}, 
-            {'$set': {'link': link}}, 
+            {'_id': channel_id},
+            {'$set': {'link': link}},
             upsert=True
         )
 
@@ -639,6 +640,26 @@ class Rohit:
     async def del_stored_reqLink(self, channel_id: int):
         # Delete the document with the channel_id in store_reqLink_data
         await self.store_reqLink_data.delete_one({'_id': channel_id})
+
+    # SCRAPED FILES MANAGEMENT
+    async def add_scraped_file(self, file_name, file_id, caption):
+        """Adds a scraped file to the database."""
+        await self.scraped_files_data.insert_one({
+            'file_name': file_name,
+            'file_id': file_id,
+            'caption': caption,
+            'timestamp': datetime.utcnow()
+        })
+
+    async def search_scraped_files(self, query):
+        """Searches for scraped files."""
+        files = self.scraped_files_data.find({
+            '$or': [
+                {'file_name': {'$regex': query, '$options': 'i'}},
+                {'caption': {'$regex': query, '$options': 'i'}}
+            ]
+        })
+        return await files.to_list(length=None)
 
 
 db = Rohit(DB_URI, DB_NAME)

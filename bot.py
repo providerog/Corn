@@ -84,14 +84,66 @@ class Bot(Client):
         await super().stop()
         self.LOGGER(__name__).info("Bot stopped.")
 
-    def run(self):
-        """Run the bot."""
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.start())
-        self.LOGGER(__name__).info("Bot is now running. Thanks to @provider_og")
+    async def scrape_worker(self):
+        """Processes scrape tasks from the queue."""
+        while True:
+            task = await self.scrape_queue.get()
+            if task is None:  # Sentinel value to stop the worker
+                break
+            try:
+                from plugins.scrapper import process_scrape_task
+                await process_scrape_task(self, task)
+            except Exception as e:
+                self.LOGGER(__name__).error(f"Error processing scrape task: {e}")
+            finally:
+                self.scrape_queue.task_done()
+
+    async def start(self):
+        await super().start()
+        usr_bot_me = await self.get_me()
+        self.uptime = get_indian_time()  # Use IST for uptime tracking
+        self.scrape_queue = asyncio.Queue()
+        self.scrape_worker_task = asyncio.create_task(self.scrape_worker())
+
+        # Create a single scraper client
+        user_session = await db.get_session(OWNER_ID)
+        if user_session:
+            self.scraper_client = Client("scraper_session", session_string=user_session, api_id=API_ID, api_hash=API_HASH)
+            await self.scraper_client.start()
+        else:
+            self.scraper_client = None
+            self.LOGGER(__name__).warning("Owner is not logged in. Scraping will not work.")
+
+
         try:
-            loop.run_forever()
-        except KeyboardInterrupt:
-            self.LOGGER(__name__).info("Shutting down...")
-        finally:
-            loop.run_until_complete(self.stop())
+            db_channel = await self.get_chat(CHANNEL_ID)
+            self.db_channel = db_channel
+        except Exception as e:
+            self.LOGGER(__name__).warning(e)
+            self.LOGGER(__name__).warning(
+                f"Make Sure bot is Admin in DB Channel, and Double check the CHANNEL_ID Value, Current Value {CHANNEL_ID}"
+            )
+            self.LOGGER(__name__).info("\nBot Stopped. @rohit_1888 for support")
+            sys.exit()
+
+        self.set_parse_mode(ParseMode.HTML)
+        self.username = usr_bot_me.username
+        self.LOGGER(__name__).info(f"Bot Running..! Made by @provider_og")
+
+        # Start Web Server
+        app = web.AppRunner(await web_server())
+        await app.setup()
+        await web.TCPSite(app, "0.0.0.0", PORT).start()
+
+
+        try: await self.send_message(OWNER_ID, text = f"<b><blockquote>🤖 Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ by @rohit_1888</blockquote></b>")
+        except: pass
+
+    async def stop(self, *args):
+        # Gracefully stop the worker
+        self.scrape_queue.put_nowait(None)
+        await self.scrape_worker_task
+        if self.scraper_client:
+            await self.scraper_client.stop()
+        await super().stop()
+        self.LOGGER(__name__).info("Bot stopped.")
