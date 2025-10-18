@@ -47,11 +47,6 @@ async def decode(base64_string: str) -> list:
     'help', 'cmd', 'info', 'add_fsub', 'fsub_chnl', 'restart', 'del_fsub', 'add_admins', 'del_admins',
     'admin_list', 'cancel', 'auto_del', 'forcesub', 'files', 'add_banuser', 'token', 'del_banuser', 'banuser_list',
     'status', 'req_fsub', 'myplan', 'login', 'header', 'footer', 'save', 'caption', 'logout', 'short']))
-@Bot.on_message(filters.private & is_admin & ~filters.command([
-    'start', 'users', 'broadcast', 'batch', 'genlink', 'stats', 'addpaid', 'removepaid', 'listpaid',
-    'help', 'cmd', 'info', 'add_fsub', 'fsub_chnl', 'restart', 'del_fsub', 'add_admins', 'del_admins',
-    'admin_list', 'cancel', 'auto_del', 'forcesub', 'files', 'add_banuser', 'token', 'del_banuser', 'banuser_list',
-    'status', 'req_fsub', 'myplan', 'login', 'header', 'footer', 'save', 'caption', 'logout', 'short']))
 async def message_handler(client: Client, message: Message):
     """Adds incoming messages to the processing queue."""
     await processing_queue.put(message)
@@ -62,7 +57,7 @@ async def process_message(client: Client, message: Message):
     """Fetches restricted content, processes it, and uploads it with header and footer."""
     # Extract the link from text or caption
     link = None
-    if "https.t.me/" in (message.text or ""):
+    if "https://t.me/" in (message.text or ""):
         link = next((word for word in message.text.split() if "https://t.me/" in word and "?start=" in word), None)
     elif "https://t.me/" in (message.caption or ""):
         link = next((word for word in message.caption.split() if "https://t.me/" in word and "?start=" in word), None)
