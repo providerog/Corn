@@ -10,7 +10,7 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ParseMode, ChatAction
 from bot import Bot
 from config import *
-from Database.database import *
+from database.database import *
 from helper_func import *
 
 DB_CHANNEL = CHANNEL_ID

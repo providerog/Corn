@@ -15,11 +15,11 @@ from plugins.autoDelete import auto_del_notification, delete_message
 from bot import Bot
 from config import *
 from helper_func import *
-from Database.database import *
-from Database.database import db
-from Database.db_premium import *
+from database.database import *
+from database.database import db
+from database.db_premium import *
 from config import *
-from Plugins.FORMATS import *
+from plugins.FORMATS import *
 from pyrogram.errors.exceptions.bad_request_400 import PeerIdInvalid
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -28,7 +28,7 @@ from pytz import timezone
 # Enable logging
 logging.basicConfig(level=logging.INFO)
 
-@Bot.on_message(filters.command('start') & filters.private & subscribed)
+@Bot.on_message(filters.command('start') & filters.private & subscribed & is_admin)
 async def start_command(client: Client, message: Message):
     id = message.from_user.id
 
@@ -379,7 +379,7 @@ async def not_joined(client: Client, message: Message):
         # Optionally, send an error message to the user or handle further actions here
         await temp.edit(f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ ᴛᴏ sᴏʟᴠᴇ ᴛʜᴇ ɪssᴜᴇs @provider_og</i></b>\n<blockquote expandable><b>Rᴇᴀsᴏɴ:</b> {e}</blockquote>")
 
-@Bot.on_message(filters.command('users') & filters.private & filters.user(OWNER_ID))
+@Bot.on_message(filters.command('users') & filters.private & is_admin)
 async def get_users(client: Bot, message: Message):
     msg = await client.send_message(chat_id=message.chat.id, text=WAIT_MSG)
     users = await db.full_userbase()
@@ -542,7 +542,7 @@ async def list_premium_users_command(client, message):
     else:
         await message.reply_text("\n\n".join(premium_user_list), parse_mode=None)
 
-@Bot.on_message(filters.command('myplan') & filters.private)
+@Bot.on_message(filters.command('myplan') & filters.private & is_admin)
 async def check_plan(client: Client, message: Message):
     user_id = message.from_user.id  # Get user ID from the message
 
@@ -552,13 +552,13 @@ async def check_plan(client: Client, message: Message):
     # Send the response message to the user
     await message.reply(status_message)
 
-@Bot.on_message(filters.command('forcesub') & filters.private & ~banUser)
+@Bot.on_message(filters.command('forcesub') & filters.private & is_admin)
 async def fsub_commands(client: Client, message: Message):
     button = [[InlineKeyboardButton("Cʟᴏsᴇ ✖️", callback_data="close")]]
     await message.reply(text=FSUB_CMD_TXT, reply_markup=InlineKeyboardMarkup(button), quote=True)
 
 
-@Bot.on_message(filters.command('help') & filters.private & ~banUser)
+@Bot.on_message(filters.command('help') & filters.private & is_admin)
 async def help(client: Client, message: Message):
     buttons = [
         [

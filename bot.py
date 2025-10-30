@@ -12,7 +12,8 @@ import pytz  # For Indian Standard Time (IST)
 
 from config import *
 from dotenv import load_dotenv
-from Database.db_premium import remove_expired_users
+from database.db_premium import remove_expired_users
+from database.database import db
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -50,10 +51,35 @@ class Bot(Client):
         )
         self.LOGGER = LOGGER
 
+    async def scrape_worker(self):
+        """Processes scrape tasks from the queue."""
+        while True:
+            task = await self.scrape_queue.get()
+            if task is None:  # Sentinel value to stop the worker
+                break
+            try:
+                from plugins.scrapper import process_scrape_task
+                await process_scrape_task(self, task)
+            except Exception as e:
+                self.LOGGER(__name__).error(f"Error processing scrape task: {e}")
+            finally:
+                self.scrape_queue.task_done()
+
     async def start(self):
         await super().start()
         usr_bot_me = await self.get_me()
         self.uptime = get_indian_time()  # Use IST for uptime tracking
+        self.scrape_queue = asyncio.Queue()
+        self.scrape_worker_task = asyncio.create_task(self.scrape_worker())
+
+        # Create a single scraper client
+        user_session = await db.get_session(OWNER_ID)
+        if user_session:
+            self.scraper_client = Client("scraper_session", session_string=user_session, api_id=API_ID, api_hash=API_HASH)
+            await self.scraper_client.start()
+        else:
+            self.scraper_client = None
+            self.LOGGER(__name__).warning("Owner is not logged in. Scraping will not work.")
 
 
         try:
@@ -69,7 +95,7 @@ class Bot(Client):
 
         self.set_parse_mode(ParseMode.HTML)
         self.username = usr_bot_me.username
-        self.LOGGER(__name__).info(f"Bot Running..! Made by @provider_og")   
+        self.LOGGER(__name__).info(f"Bot Running..! Made by @provider_og")
 
         # Start Web Server
         app = web.AppRunner(await web_server())
@@ -81,17 +107,10 @@ class Bot(Client):
         except: pass
 
     async def stop(self, *args):
+        # Gracefully stop the worker
+        self.scrape_queue.put_nowait(None)
+        await self.scrape_worker_task
+        if self.scraper_client:
+            await self.scraper_client.stop()
         await super().stop()
         self.LOGGER(__name__).info("Bot stopped.")
-
-    def run(self):
-        """Run the bot."""
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.start())
-        self.LOGGER(__name__).info("Bot is now running. Thanks to @provider_og")
-        try:
-            loop.run_forever()
-        except KeyboardInterrupt:
-            self.LOGGER(__name__).info("Shutting down...")
-        finally:
-            loop.run_until_complete(self.stop())
