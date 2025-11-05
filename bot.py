@@ -12,7 +12,7 @@ import pytz  # For Indian Standard Time (IST)
 
 from config import *
 from dotenv import load_dotenv
-from Database.db_premium import remove_expired_users
+from database.db_premium import remove_expired_users
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -46,7 +46,8 @@ class Bot(Client):
             api_hash=API_HASH,
             api_id=API_ID,
             workers=TG_BOT_WORKERS,
-            bot_token=TG_BOT_TOKEN
+            bot_token=TG_BOT_TOKEN,
+            plugins=dict(root="plugins")
         )
         self.LOGGER = LOGGER
 
@@ -75,6 +76,10 @@ class Bot(Client):
         app = web.AppRunner(await web_server())
         await app.setup()
         await web.TCPSite(app, "0.0.0.0", PORT).start()
+
+        # Start the queue worker
+        from plugins.channel_post import start_queue_worker
+        start_queue_worker(self)
 
 
         try: await self.send_message(OWNER_ID, text = f"<b><blockquote>🤖 Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ by @rohit_1888</blockquote></b>")

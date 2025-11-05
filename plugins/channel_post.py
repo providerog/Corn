@@ -6,15 +6,23 @@ import base64
 import os
 from datetime import datetime
 from pyrogram import filters, Client, enums
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    Message, InlineKeyboardMarkup, InlineKeyboardButton,
+    InputMediaPhoto, InputMediaVideo, InputMediaAudio, InputMediaDocument
+)
 from pyrogram.enums import ParseMode, ChatAction
 from bot import Bot
 from config import *
-from Database.database import *
+from database.database import *
 from helper_func import *
 
 DB_CHANNEL = CHANNEL_ID
 FILE_SIZE_LIMIT = 1 * 1024 * 1024 * 1024  # 1GB limit
+
+# Create a queue to hold incoming messages for processing
+processing_queue = asyncio.Queue()
+PROCESSED_MEDIA_GROUPS = set()
+
 
 
 def encode(data: str) -> str:
@@ -38,186 +46,124 @@ async def decode(base64_string: str) -> list:
 
 @Bot.on_message(filters.private & is_admin & ~filters.command([
     'start', 'users', 'broadcast', 'batch', 'genlink', 'stats', 'addpaid', 'removepaid', 'listpaid',
-    'help', 'cmd', 'info', 'add_fsub', 'fsub_chnl', 'restart', 'del_fsub', 'add_admins', 'del_admins', 
-    'admin_list', 'cancel', 'auto_del', 'forcesub', 'files', 'add_banuser', 'token', 'del_banuser', 'banuser_list', 
+    'help', 'cmd', 'info', 'add_fsub', 'fsub_chnl', 'restart', 'del_fsub', 'add_admins', 'del_admins',
+    'admin_list', 'cancel', 'auto_del', 'forcesub', 'files', 'add_banuser', 'token', 'del_banuser', 'banuser_list',
     'status', 'req_fsub', 'myplan', 'login', 'header', 'footer', 'save', 'caption', 'logout', 'short']))
+async def message_handler(client: Client, message: Message):
+    """Adds incoming messages to the processing queue."""
+    await processing_queue.put(message)
+    await message.reply_text("Your file has been added to the queue and will be processed shortly.")
 
 
+async def process_message(client: Client, message: Message):
+    """Processes forwarded files, media groups, and links."""
 
-async def fetch_and_upload_content(client: Client, message: Message):
-    """Fetches restricted content, processes it, and uploads it with header and footer."""
-    # Extract the link from text or caption
+    # Handle direct file forwards and media groups
+    if (message.media and not message.text) or (message.media_group_id and message.media_group_id not in PROCESSED_MEDIA_GROUPS):
+        if message.media_group_id:
+            media_group = await client.get_media_group(message.chat.id, message.id)
+            db_messages = await client.copy_media_group(DB_CHANNEL, message.chat.id, media_group[0].id)
+            message_ids = [msg.id for msg in db_messages]
+            PROCESSED_MEDIA_GROUPS.add(message.media_group_id)
+        else:
+            db_message = await message.copy(DB_CHANNEL)
+            message_ids = [db_message.id]
+
+        # Generate link
+        if len(message_ids) == 1:
+            string = f"get-{message_ids[0] * abs(client.db_channel.id)}"
+        else:
+            string = f"get-{message_ids[0] * abs(client.db_channel.id)}-{message_ids[-1] * abs(client.db_channel.id)}"
+
+        base64_string = encode(string)
+        new_link = f"https.t.me/{client.username}?start={base64_string}"
+
+        # Reply with the link
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔗 Share Link", url=f'https://telegram.me/share/url?url={new_link}')]])
+        await message.reply_text(f"<b>Your file has been saved successfully!</b>\n\n{new_link}", reply_markup=reply_markup, disable_web_page_preview=True)
+        return
+
+    # Fallback to handle links
     link = None
     if "https://t.me/" in (message.text or ""):
         link = next((word for word in message.text.split() if "https://t.me/" in word and "?start=" in word), None)
     elif "https://t.me/" in (message.caption or ""):
         link = next((word for word in message.caption.split() if "https://t.me/" in word and "?start=" in word), None)
 
-    if not link:
-        return  # Ignore messages without valid links
+    if link:
+        try:
+            link_parts = link.split("?start=")
+            bot_username = link_parts[0].split("/")[-1]
+            start_param = link_parts[1] if len(link_parts) > 1 else None
 
-    try:
-        # Parse the link
-        link_parts = link.split("?start=")
-        bot_username = link_parts[0].split("/")[-1]
-        start_param = link_parts[1] if len(link_parts) > 1 else None
+            user_session = await db.get_session(message.from_user.id)
+            if not user_session:
+                return await message.reply_text("You need to /login first to fetch content.")
 
-        # Retrieve session
-        user_session = await db.get_session(message.from_user.id)
-        if not user_session:
-            return await message.reply_text("You need to /login first to fetch content.")
+            acc = Client("restricted_content", session_string=user_session, api_id=API_ID, api_hash=API_HASH)
+            await acc.start()
 
-        # Start client session
-        acc = Client("restricted_content", session_string=user_session, api_id=API_ID, api_hash=API_HASH)
-        await acc.start()
+            sent_message = await acc.send_message(bot_username, f"/start {start_param}" if start_param else "/start")
+            await asyncio.sleep(10)
 
-        # Send /start command
-        sent_message = await acc.send_message(bot_username, f"/start {start_param}" if start_param else "/start")
+            messages_from_bot = []
+            async for response in acc.get_chat_history(bot_username, limit=100):
+                if response.date > sent_message.date:
+                    messages_from_bot.append(response)
 
-        # Wait and fetch the latest messages
-        await asyncio.sleep(10)
-        messages = []
-        async for response in acc.get_chat_history(bot_username, limit=100):
-            if response.date > sent_message.date:
-                msg_type = get_message_type(response)
-                if msg_type:
-                    messages.append((msg_type, response))
+            if not messages_from_bot:
+                return await message.reply_text("No new messages received after sending the link.")
 
-        if not messages:
-            return await message.reply_text("No new messages received after sending the link.")
+            uploaded_links = []
+            message_ids = []
+            processed_media_groups_bot = set()
 
-        # Process and upload messages
-        uploaded_links = []
-        message_ids = []
-        for msg_type, response in messages:
-            db_msg = await process_and_upload(client, acc, msg_type, response)
-            if db_msg:
-                uploaded_links.append(f"https://t.me/c/{str(abs(DB_CHANNEL))}/{db_msg.id}")
-                message_ids.append(db_msg.id)
+            for msg_from_bot in messages_from_bot:
+                if msg_from_bot.media_group_id and msg_from_bot.media_group_id not in processed_media_groups_bot:
+                    media_group = await acc.get_media_group(msg_from_bot.chat.id, msg_from_bot.id)
+                    db_msgs = await acc.copy_media_group(DB_CHANNEL, msg_from_bot.chat.id, media_group[0].id)
+                    for db_msg in db_msgs:
+                        message_ids.append(db_msg.id)
+                    processed_media_groups_bot.add(msg_from_bot.media_group_id)
+                elif not msg_from_bot.media_group_id:
+                    db_msg = await msg_from_bot.copy(DB_CHANNEL)
+                    message_ids.append(db_msg.id)
 
-        # Generate encoded link
-        if uploaded_links:
-            if len(message_ids) == 1:
-                converted_id = message_ids[0] * abs(client.db_channel.id)
-                string = f"get-{converted_id}"
-            else:
-                f_msg_id = message_ids[0] * abs(client.db_channel.id)
-                s_msg_id = message_ids[-1] * abs(client.db_channel.id) if len(message_ids) > 1 else 0
-                string = f"get-{f_msg_id}-{s_msg_id}"
+            if message_ids:
+                if len(message_ids) == 1:
+                    string = f"get-{message_ids[0] * abs(client.db_channel.id)}"
+                else:
+                    string = f"get-{message_ids[0] * abs(client.db_channel.id)}-{message_ids[-1] * abs(client.db_channel.id)}"
 
-            base64_string = encode(string)
-            new_link = f"https://t.me/{client.username}?start={base64_string}"
+                base64_string = encode(string)
+                new_link = f"https.t.me/{client.username}?start={base64_string}"
 
-            # Fetch header and footer from the database
-            header = await db.get_header(message.from_user.id) or ""
-            footer = await db.get_footer(message.from_user.id) or ""
+                header = await db.get_header(message.from_user.id) or ""
+                footer = await db.get_footer(message.from_user.id) or ""
+                final_message = f"{header}\n\n<b>Your content has been processed successfully:</b>\n{new_link}\n\n{footer}"
 
-            # Get the caption state (whether it's enabled or not)
-            caption_enabled = await db.get_caption_state(message.from_user.id) or ""
+                reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔗 Share Link", url=f'https://telegram.me/share/url?url={new_link}')]])
+                await message.reply_text(final_message, reply_markup=reply_markup, disable_web_page_preview=True)
 
-            # Combine header, link, and footer
-            final_message = f"{header}\n\n<b>Your content has been processed successfully:</b>\n{new_link}\n\n{footer}"
-
-            # Replace only the link in the caption
-            if message.caption and caption_enabled:  # For photo messages with captions and captions enabled
-                updated_caption = f"{header}\n\n{message.caption.replace(link, new_link)}\n\n{footer}"
-                await message.reply_photo(
-                    photo=message.photo.file_id,
-                    caption=updated_caption,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🔗 Share Link", url=f'https://telegram.me/share/url?url={new_link}')]
-                    ])
-                )
-            else:  # For text messages or captions without a photo, or if captions are disabled
-                reply_markup = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔗 Share Link", url=f'https://telegram.me/share/url?url={new_link}')]
-                ])
-                await message.reply_text(
-                    final_message,
-                    reply_markup=reply_markup,
-                    disable_web_page_preview=True,
-                )
-        else:  # No uploaded links; handle with header and footer
-            header = await db.get_header(message.from_user.id) or ""
-            footer = await db.get_footer(message.from_user.id) or ""
-            no_content_message = f"{header}\n\n<b>No new content was fetched after processing your link.</b>\n\n{footer}"
-            await message.reply_text(no_content_message)
-
-    except Exception as e:
-        await message.reply_text(f"An error occurred: {e}")
-
-    finally:
-        # Ensure to stop the client session if it was started
-        if 'acc' in locals():
-            await acc.stop()
-
-async def process_and_upload(client, acc, msg_type, response):
-    """Processes and uploads a single message to the database channel."""
-    temp_file_path = None
-    db_msg = None
-    try:
-        if msg_type in ["Document", "Video", "Photo", "Audio", "Animation"]:
-            # Use the original file name for media, ensuring proper file extension
-            if msg_type == "Photo":
-                temp_file_path = await acc.download_media(response.photo, file_name=f"{response.photo.file_id}.jpg")
-                db_msg = await client.send_photo(DB_CHANNEL, temp_file_path, caption=response.caption)
-
-            elif msg_type == "Video":
-                temp_file_path = await acc.download_media(response.video, file_name=f"{response.video.file_id}.mp4")
-                db_msg = await client.send_video(
-                    DB_CHANNEL,
-                    temp_file_path,
-                    caption=response.caption,
-                    duration=response.video.duration,  # Pass the duration
-                    width=response.video.width,  # Pass width and height
-                    height=response.video.height
-                )
-
-            elif msg_type == "Audio":
-                temp_file_path = await acc.download_media(response.audio, file_name=f"{response.audio.file_id}.mp3")
-                db_msg = await client.send_audio(
-                    DB_CHANNEL,
-                    temp_file_path,
-                    caption=response.caption,
-                    duration=response.audio.duration,  # Pass the duration
-                    performer=response.audio.performer,  # Optional: Retain performer
-                    title=response.audio.title  # Optional: Retain title
-                )
-
-            elif msg_type == "Document":
-                temp_file_path = await acc.download_media(response.document, file_name=response.document.file_name)
-                db_msg = await client.send_document(DB_CHANNEL, temp_file_path, caption=response.caption)
-
-            elif msg_type == "Animation":
-                temp_file_path = await acc.download_media(response.animation, file_name=f"{response.animation.file_id}.gif")
-                db_msg = await client.send_animation(DB_CHANNEL, temp_file_path, caption=response.caption)
-
-    finally:
-        if temp_file_path and os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-
-    return db_msg  # Return the uploaded message object
-
-async def upload_to_db(client, msg_type, file_path, caption):
-    """Uploads media to the database channel."""
-    if msg_type == "Photo":
-        return await client.send_photo(DB_CHANNEL, file_path, caption=caption, parse_mode=enums.ParseMode.HTML)
-    elif msg_type == "Video":
-        return await client.send_video(DB_CHANNEL, file_path, caption=caption, parse_mode=enums.ParseMode.HTML)
-    elif msg_type == "Audio":
-        return await client.send_audio(DB_CHANNEL, file_path, caption=caption, parse_mode=enums.ParseMode.HTML)
-    elif msg_type == "Document":
-        return await client.send_document(DB_CHANNEL, file_path, caption=caption, parse_mode=enums.ParseMode.HTML)
-    elif msg_type == "Animation":
-        return await client.send_animation(DB_CHANNEL, file_path, caption=caption, parse_mode=enums.ParseMode.HTML)
+        except Exception as e:
+            await message.reply_text(f"An error occurred: {e}")
+        finally:
+            if 'acc' in locals() and acc.is_connected:
+                await acc.stop()
 
 
-def get_message_type(msg):
-    """Identifies the type of the message."""
-    if msg.document: return "Document"
-    if msg.video: return "Video"
-    if msg.animation: return "Animation"
-    if msg.audio: return "Audio"
-    if msg.photo: return "Photo"
-    if msg.text: return "Text"
-    return None
+async def queue_worker(client: Client):
+    """Monitors the queue and processes messages."""
+    while True:
+        message = await processing_queue.get()
+        try:
+            await process_message(client, message)
+        except Exception as e:
+            print(f"Error processing message from queue: {e}")
+            await message.reply_text(f"Sorry, an error occurred while processing your file: {e}")
+        finally:
+            processing_queue.task_done()
+
+def start_queue_worker(client: Client):
+    """Creates and starts the background queue worker task."""
+    asyncio.create_task(queue_worker(client))
